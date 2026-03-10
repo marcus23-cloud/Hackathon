@@ -30,7 +30,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useWallet } from '@/components/providers/wallet-provider';
-import { mockProposals, mockUsers, mockProposalReviews } from '@/lib/mock-data';
+import { useCarbonStore } from '@/lib/store';
 import type { Proposal } from '@/lib/types';
 
 // NDVI threshold for auto-approval
@@ -48,8 +48,14 @@ export default function VerificationPage() {
   } | null>(null);
   const [isAutoVerifying, setIsAutoVerifying] = useState(false);
 
+  // Get data from store
+  const proposals = useCarbonStore((state) => state.proposals);
+  const users = useCarbonStore((state) => state.users);
+  const proposalReviews = useCarbonStore((state) => state.proposalReviews);
+  const reviewProposal = useCarbonStore((state) => state.reviewProposal);
+
   // Filter pending proposals
-  const pendingProposals = mockProposals.filter(
+  const pendingProposals = proposals.filter(
     (p) => p.status === 'submitted' || p.status === 'under_review'
   );
 
@@ -77,7 +83,16 @@ export default function VerificationPage() {
     setIsAutoVerifying(false);
 
     if (passed) {
-      toast.success('Auto-verification passed! Proposal approved and credit minted.');
+      // Auto-approve the proposal
+      const review = reviewProposal(
+        proposal.id,
+        user?.id || '',
+        'approved',
+        `Auto-verified: NDVI score ${ndviScore.toFixed(3)} meets threshold (>= ${NDVI_THRESHOLD}). ${proposal.credit_quantity} tCO2e approved.`
+      );
+      if (review) {
+        toast.success('Auto-verification passed! Proposal approved and credit minted.');
+      }
     } else {
       toast.info('Auto-verification: Manual review required.');
     }
@@ -89,15 +104,29 @@ export default function VerificationPage() {
 
     setIsSubmitting(true);
 
-    // Simulate API call
+    // Simulate blockchain transaction delay
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    if (decision === 'approved') {
-      toast.success(
-        `Proposal approved! ${selectedProposal.credit_quantity} carbon credits minted as NFT.`
-      );
+    // Actually review the proposal (this also mints credit if approved)
+    const review = reviewProposal(
+      selectedProposal.id,
+      user.id,
+      decision,
+      reviewComments || (decision === 'approved' 
+        ? `Approved: NDVI score meets threshold. ${selectedProposal.credit_quantity} tCO2e verified.`
+        : 'Rejected: Does not meet verification requirements.')
+    );
+
+    if (review) {
+      if (decision === 'approved') {
+        toast.success(
+          `Proposal approved! ${selectedProposal.credit_quantity} carbon credits minted as NFT and transferred to producer.`
+        );
+      } else {
+        toast.info('Proposal rejected. Producer has been notified.');
+      }
     } else {
-      toast.info('Proposal rejected. Producer has been notified.');
+      toast.error('Failed to process review. Please try again.');
     }
 
     setSelectedProposal(null);
@@ -197,7 +226,7 @@ export default function VerificationPage() {
           {pendingProposals.length > 0 ? (
             <div className="space-y-4">
               {pendingProposals.map((proposal) => {
-                const producer = mockUsers.find((u) => u.id === proposal.producer_id);
+                const producer = users.find((u) => u.id === proposal.producer_id);
                 const canAutoVerify =
                   proposal.sensor_data && proposal.sensor_data.ndvi_score >= NDVI_THRESHOLD;
 
@@ -277,8 +306,8 @@ export default function VerificationPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {mockProposalReviews.slice(0, 5).map((review) => {
-              const proposal = mockProposals.find((p) => p.id === review.proposal_id);
+            {proposalReviews.slice(-5).reverse().map((review) => {
+              const proposal = proposals.find((p) => p.id === review.proposal_id);
               return (
                 <div
                   key={review.id}

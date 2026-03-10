@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useWallet } from '@/components/providers/wallet-provider';
-import { mockProposals, mockUsers } from '@/lib/mock-data';
+import { useCarbonStore } from '@/lib/store';
 import type { ProposalStatus } from '@/lib/types';
 
 const statusConfig: Record<
@@ -34,10 +34,16 @@ export default function ProposalsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   
-  console.log('[v0] ProposalsPage - isConnected:', isConnected, 'user:', user, 'mockProposals count:', mockProposals.length);
+  const proposals = useCarbonStore((state) => state.proposals);
+  const users = useCarbonStore((state) => state.users);
 
-  // Filter proposals based on search and status
-  const filteredProposals = mockProposals.filter((p) => {
+  // Filter proposals based on search, status, and user role
+  // Producers only see their own proposals, others see all
+  const userProposals = user?.role === 'producer' 
+    ? proposals.filter((p) => p.producer_id === user.id)
+    : proposals;
+
+  const filteredProposals = userProposals.filter((p) => {
     const matchesSearch =
       p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.description?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -113,8 +119,8 @@ export default function ProposalsPage() {
         {['all', 'draft', 'submitted', 'under_review', 'approved'].map((status) => {
           const count =
             status === 'all'
-              ? mockProposals.length
-              : mockProposals.filter((p) => p.status === status).length;
+              ? userProposals.length
+              : userProposals.filter((p) => p.status === status).length;
           const config =
             status === 'all'
               ? { label: 'Total', variant: 'outline' as const }
@@ -140,7 +146,7 @@ export default function ProposalsPage() {
       {filteredProposals.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredProposals.map((proposal) => {
-            const producer = mockUsers.find((u) => u.id === proposal.producer_id);
+            const producer = users.find((u) => u.id === proposal.producer_id);
             const config = statusConfig[proposal.status];
 
             return (
