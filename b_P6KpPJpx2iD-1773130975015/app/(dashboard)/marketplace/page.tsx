@@ -42,8 +42,13 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { useWallet } from '@/components/providers/wallet-provider';
-import { useCarbonStore } from '@/lib/store';
-import type { TradeOrder, Credit, User } from '@/lib/types';
+import {
+  getOpenSellOrders,
+  mockCredits,
+  mockUsers,
+  getDashboardStats,
+} from '@/lib/mock-data';
+import type { TradeOrder, Credit } from '@/lib/types';
 import { formatEthPrice, calculatePricePerTon, calculateFractionalPrice, calculateFractionalTonnage } from '@/lib/eth-utils';
 
 export default function MarketplacePage() {
@@ -51,7 +56,7 @@ export default function MarketplacePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [projectTypeFilter, setProjectTypeFilter] = useState('all');
-  const [selectedOrder, setSelectedOrder] = useState<(TradeOrder & { credit: Credit; seller: User }) | null>(
+  const [selectedOrder, setSelectedOrder] = useState<(TradeOrder & { credit: Credit }) | null>(
     null
   );
   const [purchaseMode, setPurchaseMode] = useState<'full' | 'fractional'>('full');
@@ -59,20 +64,12 @@ export default function MarketplacePage() {
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [retireOnPurchase, setRetireOnPurchase] = useState(false);
 
-  // Get data from store
-  const getDashboardStats = useCarbonStore((state) => state.getDashboardStats);
-  const getOpenSellOrders = useCarbonStore((state) => state.getOpenSellOrders);
-  const credits = useCarbonStore((state) => state.credits);
-  const purchaseCredit = useCarbonStore((state) => state.purchaseCredit);
-  const retireCredit = useCarbonStore((state) => state.retireCredit);
-  const users = useCarbonStore((state) => state.users);
-
   const stats = getDashboardStats();
   const openOrders = getOpenSellOrders();
 
-  // Get owned credits for retirement (credits owned by current user)
-  const ownedCredits = credits.filter(
-    (c) => c.owner_id === user?.id && (c.status === 'minted' || c.status === 'transferred')
+  // Get owned credits for retirement
+  const ownedCredits = mockCredits.filter(
+    (c) => c.status === 'minted' || c.status === 'listed'
   );
 
   // Filter and sort listings
@@ -115,21 +112,14 @@ export default function MarketplacePage() {
         ? formatEthPrice(selectedOrder.asking_price_eth, 4)
         : calculateFractionalPrice(selectedOrder.asking_price_eth, fractionalPercent);
 
-    // Actually execute the purchase
-    const trade = purchaseCredit(selectedOrder.id, user.id, retireOnPurchase);
-
-    if (trade) {
-      if (retireOnPurchase) {
-        toast.success(
-          `Successfully purchased and retired ${amount.toFixed(2)} tCO2e for ${price} ETH. Certificate generated!`
-        );
-      } else {
-        toast.success(
-          `Successfully purchased ${amount.toFixed(2)} tCO2e for ${price} ETH! Credit transferred to your wallet.`
-        );
-      }
+    if (retireOnPurchase) {
+      toast.success(
+        `Successfully purchased and retired ${amount.toFixed(2)} tCO2e for ${price} ETH. Certificate generated!`
+      );
     } else {
-      toast.error('Failed to complete purchase. Please try again.');
+      toast.success(
+        `Successfully purchased ${amount.toFixed(2)} tCO2e for ${price} ETH!`
+      );
     }
 
     setSelectedOrder(null);
@@ -141,9 +131,8 @@ export default function MarketplacePage() {
 
   // Handle credit retirement
   const handleRetire = (credit: Credit) => {
-    retireCredit(credit.id);
     toast.success(
-      `Successfully retired ${credit.metadata.co2_tonnage} tCO2e! Credit has been burned and retirement certificate generated.`
+      `Successfully retired ${credit.metadata.co2_tonnage} tCO2e! Retirement certificate generated.`
     );
   };
 
@@ -264,7 +253,7 @@ export default function MarketplacePage() {
           {filteredOrders.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {filteredOrders.map((order) => {
-                const seller = order.seller || users.find((u) => u.id === order.seller_id);
+                const seller = mockUsers.find((u) => u.id === order.seller_id);
                 const pricePerTon = calculatePricePerTon(order.asking_price_eth, order.credit.metadata.co2_tonnage);
                 const isSeller = order.seller_id === user?.id;
 

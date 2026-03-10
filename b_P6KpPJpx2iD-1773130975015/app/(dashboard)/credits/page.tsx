@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useWallet } from '@/components/providers/wallet-provider';
-import { useCarbonStore } from '@/lib/store';
+import { mockCredits, mockTrades, getDashboardStats } from '@/lib/mock-data';
 import type { Credit } from '@/lib/types';
 
 const statusConfig: Record<
@@ -56,40 +56,21 @@ export default function CreditsPage() {
   const [retirementData, setRetirementData] = useState({ beneficiary: '', reason: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Get data from store
-  const credits = useCarbonStore((state) => state.credits);
-  const trades = useCarbonStore((state) => state.trades);
-  const sellOrders = useCarbonStore((state) => state.sellOrders);
-  const getDashboardStats = useCarbonStore((state) => state.getDashboardStats);
-  const listCreditForSale = useCarbonStore((state) => state.listCreditForSale);
-  const cancelListing = useCarbonStore((state) => state.cancelListing);
-  const retireCredit = useCarbonStore((state) => state.retireCredit);
-
   const stats = getDashboardStats();
 
-  // Filter credits owned by current user
-  const userCredits = credits.filter((c) => c.owner_id === user?.id);
-  
-  // Filter credits by status (only user's credits)
-  const availableCredits = userCredits.filter((c) => c.status === 'minted' || c.status === 'transferred');
-  const listedCredits = userCredits.filter((c) => c.status === 'listed');
-  const retiredCredits = userCredits.filter((c) => c.status === 'retired');
+  // Filter credits by status
+  const availableCredits = mockCredits.filter((c) => c.status === 'minted');
+  const listedCredits = mockCredits.filter((c) => c.status === 'listed');
+  const retiredCredits = mockCredits.filter((c) => c.status === 'retired');
 
   // Handle listing a credit
   const handleListCredit = async () => {
-    if (!selectedCredit || !listingPrice || !user) return;
+    if (!selectedCredit || !listingPrice) return;
 
     setIsSubmitting(true);
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const order = listCreditForSale(selectedCredit.id, user.id, listingPrice);
-    
-    if (order) {
-      toast.success(`Credit listed for ${listingPrice} ETH on the marketplace!`);
-    } else {
-      toast.error('Failed to list credit. Please try again.');
-    }
-    
+    toast.success(`Credit listed for ${listingPrice} ETH on the marketplace!`);
     setDialogMode(null);
     setSelectedCredit(null);
     setListingPrice('');
@@ -103,12 +84,10 @@ export default function CreditsPage() {
     setIsSubmitting(true);
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    retireCredit(selectedCredit.id);
-    
     const certificateNumber = `CC-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
     toast.success(
-      `Credit retired successfully! Certificate: ${certificateNumber}. ${selectedCredit.metadata.co2_tonnage} tCO2e permanently offset and burned.`
+      `Credit retired successfully! Certificate: ${certificateNumber}. ${selectedCredit.metadata.co2_tonnage} tCO2e permanently offset.`
     );
     setDialogMode(null);
     setSelectedCredit(null);
@@ -118,14 +97,7 @@ export default function CreditsPage() {
 
   // Handle canceling a listing
   const handleCancelListing = async (credit: Credit) => {
-    // Find the sell order for this credit
-    const order = sellOrders.find((o) => o.credit_id === credit.id && o.status === 'open');
-    if (order) {
-      cancelListing(order.id);
-      toast.success('Listing cancelled. Credit is now available again.');
-    } else {
-      toast.error('Could not find the listing to cancel.');
-    }
+    toast.success('Listing cancelled. Credit is now available again.');
   };
 
   if (!isConnected) {
@@ -396,18 +368,11 @@ export default function CreditsPage() {
               <CardDescription>Your trading and retirement history</CardDescription>
             </CardHeader>
             <CardContent>
-              {trades.length > 0 ? (
+              {mockTrades.length > 0 ? (
                 <div className="space-y-4">
-                  {trades.slice(-10).reverse().map((trade) => {
-                    const credit = credits.find((c) => c.id === trade.credit_id);
-                    // Find if user was buyer or seller
-                    const buyOrder = useCarbonStore.getState().buyOrders.find(o => o.id === trade.buy_order_id);
-                    const sellOrder = useCarbonStore.getState().sellOrders.find(o => o.id === trade.sell_order_id);
-                    const isBuyer = buyOrder?.buyer_id === user?.id;
-                    const isSeller = sellOrder?.seller_id === user?.id;
-                    
-                    // Only show trades involving the current user
-                    if (!isBuyer && !isSeller) return null;
+                  {mockTrades.slice(0, 10).map((trade) => {
+                    const credit = mockCredits.find((c) => c.id === trade.credit_id);
+                    const isBuyer = trade.buyer_id === user?.id;
 
                     return (
                       <div
@@ -438,14 +403,14 @@ export default function CreditsPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium text-foreground">{trade.execution_price_eth} ETH</p>
+                          <p className="font-medium text-foreground">{trade.price_eth} ETH</p>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(trade.settled_at || trade.matched_at).toLocaleDateString()}
+                            {new Date(trade.executed_at).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
                     );
-                  }).filter(Boolean)}
+                  })}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-8 text-center">

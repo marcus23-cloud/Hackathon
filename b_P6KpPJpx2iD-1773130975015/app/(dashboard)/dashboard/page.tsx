@@ -19,7 +19,13 @@ import {
   Eye,
 } from 'lucide-react';
 import { useWallet } from '@/components/providers/wallet-provider';
-import { useCarbonStore } from '@/lib/store';
+import {
+  mockProposals,
+  mockCredits,
+  mockUsers,
+  getDashboardStats,
+  getOpenSellOrders,
+} from '@/lib/mock-data';
 import { formatEthPrice, calculatePricePerTon } from '@/lib/eth-utils';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -40,25 +46,13 @@ const creditStatusConfig: Record<string, { label: string; variant: 'default' | '
 
 export default function DashboardPage() {
   const { user, isConnected } = useWallet();
-  
-  // Get data from store
-  const proposals = useCarbonStore((state) => state.proposals);
-  const credits = useCarbonStore((state) => state.credits);
-  const users = useCarbonStore((state) => state.users);
-  const getDashboardStats = useCarbonStore((state) => state.getDashboardStats);
-  const getOpenSellOrders = useCarbonStore((state) => state.getOpenSellOrders);
-  
   const stats = getDashboardStats();
 
   // Role-specific data
-  const myProposals = user?.role === 'producer' 
-    ? proposals.filter(p => p.producer_id === user.id).slice(0, 3)
-    : proposals.slice(0, 3);
-  const myCredits = user 
-    ? credits.filter(c => c.owner_id === user.id).slice(0, 4)
-    : credits.slice(0, 4);
+  const myProposals = mockProposals.slice(0, 3);
+  const myCredits = mockCredits.slice(0, 4);
   const openListings = getOpenSellOrders().slice(0, 3);
-  const pendingReviews = proposals.filter(
+  const pendingReviews = mockProposals.filter(
     (p) => p.status === 'submitted' || p.status === 'under_review'
   );
 
@@ -86,7 +80,7 @@ export default function DashboardPage() {
             <FileCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{proposals.filter(p => p.producer_id === user?.id).length}</div>
+            <div className="text-2xl font-bold">{mockProposals.length}</div>
             <p className="text-xs text-muted-foreground">{stats.approvedProposals} approved</p>
           </CardContent>
         </Card>
@@ -336,7 +330,7 @@ export default function DashboardPage() {
             <FileCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{proposals.length}</div>
+            <div className="text-2xl font-bold">{mockProposals.length}</div>
             <p className="text-xs text-muted-foreground">All time submissions</p>
           </CardContent>
         </Card>
@@ -356,7 +350,7 @@ export default function DashboardPage() {
             <XCircle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{proposals.filter((p) => p.status === 'rejected').length}</div>
+            <div className="text-2xl font-bold">{mockProposals.filter((p) => p.status === 'rejected').length}</div>
             <p className="text-xs text-muted-foreground">Did not meet criteria</p>
           </CardContent>
         </Card>
@@ -376,7 +370,7 @@ export default function DashboardPage() {
           {pendingReviews.length > 0 ? (
             <div className="space-y-4">
               {pendingReviews.map((proposal) => {
-                const producer = users.find((u) => u.id === proposal.producer_id);
+                const producer = mockUsers.find((u) => u.id === proposal.producer_id);
                 return (
                   <div key={proposal.id} className="flex items-center justify-between rounded-lg border border-border p-4">
                     <div className="space-y-1">

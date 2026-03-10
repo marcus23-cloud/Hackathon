@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useWallet } from '@/components/providers/wallet-provider';
-import { useCarbonStore } from '@/lib/store';
+import { createClient } from '@/lib/supabase/client';
 
 const projectTypes = [
   { value: 'reforestation', label: 'Reforestation' },
@@ -43,7 +43,6 @@ const methodologies = [
 export default function NewProposalPage() {
   const router = useRouter();
   const { user, isConnected } = useWallet();
-  const submitProposal = useCarbonStore((state) => state.submitProposal);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -55,12 +54,6 @@ export default function NewProposalPage() {
     start_date: '',
     end_date: '',
     documentation_url: '',
-    // Sensor data fields
-    device_id: '',
-    co2_tons: '',
-    temperature: '',
-    humidity: '',
-    ndvi_score: '',
   });
 
   const handleChange = (field: string, value: string) => {
@@ -75,7 +68,7 @@ export default function NewProposalPage() {
       return;
     }
 
-    if (!formData.title || !formData.project_type || !formData.estimated_credits) {
+    if (!formData.title || !formData.project_type) {
       toast.error('Please fill in the required fields');
       return;
     }
@@ -83,38 +76,39 @@ export default function NewProposalPage() {
     setIsSubmitting(true);
 
     try {
-      // Create sensor data object if provided
-      const sensorData = formData.device_id ? {
-        device_id: formData.device_id,
-        co2_sequestered_tons: parseFloat(formData.co2_tons) || parseFloat(formData.estimated_credits),
-        temperature_c: parseFloat(formData.temperature) || 25,
-        humidity_pct: parseFloat(formData.humidity) || 70,
-        ndvi_score: parseFloat(formData.ndvi_score) || 0.6,
-        recorded_at: new Date().toISOString(),
-      } : null;
+      const supabase = createClient();
+      
+      const { data, error } = await supabase
+        .from('proposals')
+        .insert({
+          user_id: user.id,
+          title: formData.title,
+          description: formData.description || null,
+          location: formData.location || null,
+          project_type: formData.project_type,
+          estimated_credits: parseInt(formData.estimated_credits) || 0,
+          methodology: formData.methodology || null,
+          start_date: formData.start_date || null,
+          end_date: formData.end_date || null,
+          documentation_url: formData.documentation_url || null,
+          status: isDraft ? 'draft' : 'submitted',
+        })
+        .select()
+        .single();
 
-      // Submit to store
-      const newProposal = submitProposal({
-        producer_id: user.id,
-        title: formData.title,
-        description: formData.description || null,
-        commodity_type: formData.project_type,
-        credit_quantity: parseInt(formData.estimated_credits) || 0,
-        supporting_documents: formData.documentation_url ? {
-          land_ownership: formData.documentation_url,
-        } : null,
-        proof_of_intent: formData.methodology ? `Methodology: ${formData.methodology}` : null,
-        proof_of_value: formData.location ? `Location: ${formData.location}` : null,
-        sensor_data: sensorData,
-        submitted_at: isDraft ? null : new Date().toISOString(),
+      if (error) throw error;
+
+      // Create timeline event
+      await supabase.from('timeline_events').insert({
+        proposal_id: data.id,
+        event_type: isDraft ? 'proposal_drafted' : 'proposal_submitted',
+        description: isDraft 
+          ? 'Proposal saved as draft' 
+          : 'Proposal submitted for verification',
       });
 
-      toast.success(
-        isDraft 
-          ? 'Draft saved successfully' 
-          : `Proposal "${newProposal.title}" submitted for verification!`
-      );
-      router.push('/proposals');
+      toast.success(isDraft ? 'Draft saved successfully' : 'Proposal submitted successfully');
+      router.push(`/proposals/${data.id}`);
     } catch (error) {
       console.error('Error creating proposal:', error);
       toast.error('Failed to create proposal. Please try again.');
