@@ -16,18 +16,9 @@ import {
   CheckCircle,
   Flame,
   Layers,
-  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { useWallet } from '@/components/providers/wallet-provider';
 
 const features = [
@@ -110,7 +101,7 @@ const roles = [
 ];
 
 export default function Home() {
-  const { login, isConnecting, isConnected } = useWallet();
+  const { connect, isConnecting, isConnected } = useWallet();
 
   return (
     <div className="min-h-screen bg-background">
@@ -130,29 +121,9 @@ export default function Home() {
                 <Link href="/dashboard">Go to Dashboard</Link>
               </Button>
             ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button disabled={isConnecting}>
-                    {isConnecting ? 'Signing in...' : 'Sign In'}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Choose your role</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => login('producer')}>
-                    <Leaf className="mr-2 h-4 w-4" />
-                    Sign in as Seller
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => login('buyer')}>
-                    <User className="mr-2 h-4 w-4" />
-                    Sign in as Buyer
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => login('certification_body')}>
-                    <Shield className="mr-2 h-4 w-4" />
-                    Sign in as Certifier
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button onClick={connect} disabled={isConnecting}>
+                {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+              </Button>
             )}
           </div>
         </nav>
@@ -186,30 +157,15 @@ export default function Home() {
                 </>
               ) : (
                 <>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="lg" disabled={isConnecting} className="gap-2">
-                        {isConnecting ? 'Signing in...' : 'Get Started'}
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="center" className="w-56">
-                      <DropdownMenuLabel>Choose your role</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => login('producer')}>
-                        <Leaf className="mr-2 h-4 w-4" />
-                        Sign in as Seller
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => login('buyer')}>
-                        <User className="mr-2 h-4 w-4" />
-                        Sign in as Buyer
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => login('certification_body')}>
-                        <Shield className="mr-2 h-4 w-4" />
-                        Sign in as Certifier
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Button
+                    size="lg"
+                    onClick={connect}
+                    disabled={isConnecting}
+                    className="gap-2"
+                  >
+                    {isConnecting ? 'Connecting...' : 'Get Started'}
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
                   <Button asChild variant="outline" size="lg">
                     <Link href="/marketplace">Explore Marketplace</Link>
                   </Button>
@@ -432,8 +388,8 @@ export default function Home() {
           {[
             {
               step: '01',
-              title: 'Sign In',
-              desc: 'Choose your role: Seller, Buyer, or Certifier',
+              title: 'Connect Wallet',
+              desc: 'Link your MetaMask wallet and select your role',
             },
             {
               step: '02',
@@ -489,35 +445,16 @@ export default function Home() {
                   </Link>
                 </Button>
               ) : (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      size="lg"
-                      variant="secondary"
-                      disabled={isConnecting}
-                      className="gap-2"
-                    >
-                      {isConnecting ? 'Signing in...' : 'Get Started Now'}
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="center" className="w-56">
-                    <DropdownMenuLabel>Choose your role</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => login('producer')}>
-                      <Leaf className="mr-2 h-4 w-4" />
-                      Sign in as Seller
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => login('buyer')}>
-                      <User className="mr-2 h-4 w-4" />
-                      Sign in as Buyer
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => login('certification_body')}>
-                      <Shield className="mr-2 h-4 w-4" />
-                      Sign in as Certifier
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  onClick={connect}
+                  disabled={isConnecting}
+                  className="gap-2"
+                >
+                  {isConnecting ? 'Connecting...' : 'Connect Wallet to Start'}
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
               )}
             </div>
           </div>
